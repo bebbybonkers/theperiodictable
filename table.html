@@ -1,0 +1,278 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Interactive Periodic Table</title>
+<style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 0;
+    padding: 20px;
+    background: #f4f6fa;
+    color: #222;
+    display: flex;
+    flex-direction: row;
+    justify-content: center;
+  }
+
+  #legend {
+    margin-right: 20px;
+    background: #fff;
+    padding: 15px;
+    border-radius: 10px;
+    box-shadow: 0 0 12px rgba(0,0,0,0.1);
+    height: fit-content;
+  }
+  .legend-item {
+    display: block;
+    margin: 6px 0;
+    padding: 5px 10px;
+    border-radius: 6px;
+    color: white;
+    font-weight: bold;
+    font-size: 14px;
+  }
+
+  #main-area {
+    display: flex;
+    flex-direction: row;
+    align-items: flex-start;
+  }
+
+  #periodic-table {
+    display: grid;
+    grid-template-columns: repeat(18, 60px);
+    grid-auto-rows: 60px;
+    gap: 4px;
+    background: white;
+    padding: 10px;
+    border-radius: 10px;
+    box-shadow: 0 0 12px rgba(0,0,0,0.15);
+    position: relative;
+  }
+
+  .element {
+    border-radius: 6px;
+    padding: 5px;
+    font-size: 12px;
+    text-align: center;
+    cursor: pointer;
+    box-shadow: 0 1px 4px rgba(0,0,0,0.2);
+    transition: transform 0.15s, box-shadow 0.15s;
+  }
+  .element:hover {
+    transform: scale(1.15);
+    box-shadow: 0 3px 8px rgba(0,0,0,0.3);
+    z-index: 10;
+  }
+  .element strong {
+    display: block;
+    font-size: 14px;
+  }
+
+  #info {
+    max-width: 320px;
+    margin-left: 20px;
+    padding: 20px;
+    background: #fff;
+    border-radius: 10px;
+    box-shadow: 0 0 12px rgba(0,0,0,0.15);
+  }
+  #element-info {
+    margin-bottom: 15px;
+  }
+
+  input, select, button {
+    margin: 5px 0;
+    padding: 8px;
+    border-radius: 6px;
+    border: 1px solid #ccc;
+    font-size: 14px;
+    width: 100%;
+    box-sizing: border-box;
+  }
+  button {
+    background: #0077ff;
+    color: white;
+    cursor: pointer;
+    border: none;
+  }
+  button:hover {
+    background: #005fcc;
+  }
+</style>
+</head>
+<body>
+<div id="legend"></div>
+
+<div id="main-area">
+  <div id="periodic-table"></div>
+
+  <div id="info">
+    <h2>Element Information</h2>
+    <div id="element-info">Click an element to see details.</div>
+    
+    <h2>Compare Two Elements/Ions</h2>
+    <input type="text" id="element1" placeholder="e.g., Na, O2-">
+    <input type="text" id="element2" placeholder="e.g., Cl, Fe3+">
+    <select id="property">
+      <option value="ionizationEnergy">Ionization Energy</option>
+      <option value="reactivity">Reactivity</option>
+      <option value="electronAffinity">Electron Affinity</option>
+      <option value="atomicRadius">Atomic Radius</option>
+    </select>
+    <button onclick="compareElements()">Compare</button>
+    <div id="comparison-result" style="margin-top:10px;font-weight:bold;"></div>
+  </div>
+</div>
+
+<script>
+  const categoryColors = {
+    "alkali metal": "#ff595e",
+    "alkaline earth metal": "#ffca3a",
+    "transition metal": "#8ac926",
+    "post-transition metal": "#1982c4",
+    "metalloid": "#6a4c93",
+    "nonmetal": "#ff924c",
+    "halogen": "#ff4d6d",
+    "noble gas": "#4cc9f0",
+    "lanthanide": "#a86fa6",
+    "actinide": "#a86fa6"
+  };
+
+  const legendMap = {
+    "Alkali Metals": "alkali metal",
+    "Alkaline Earth Metals": "alkaline earth metal",
+    "Transition Metals": "transition metal",
+    "Rare Earth Metals": "lanthanide", // includes actinides
+    "Metalloids": "metalloid",
+    "Other Metals": "post-transition metal",
+    "Nonmetals": "nonmetal",
+    "Halogens": "halogen",
+    "Noble Gases": "noble gas"
+  };
+
+  let elements = [];
+
+  fetch("https://cdn.jsdelivr.net/gh/Bowserinator/Periodic-Table-JSON@master/PeriodicTableJSON.json")
+    .then(res => res.json())
+    .then(data => {
+      elements = data.elements.filter(el => el.symbol !== "Uue");
+      forceCategories();
+      adjustFblock();
+      buildTable(elements);
+      buildLegend();
+    });
+
+  function forceCategories() {
+    const nonmetals = ["C","N","O","P","S","Se"];
+    const halogens = ["F","Cl","Br","I","At"];
+    elements.forEach(el => {
+      if (nonmetals.includes(el.symbol)) el.category = "nonmetal";
+      if (halogens.includes(el.symbol)) el.category = "halogen";
+    });
+  }
+
+  // place lanthanides at row 9, actinides at row 10 → leaves row 8 as the gap
+  function adjustFblock() {
+    elements.forEach(el => {
+      if (el.category === "lanthanide") el.ypos = 9;
+      if (el.category === "actinide") el.ypos = 10;
+    });
+  }
+
+  function buildTable(elements) {
+    const table = document.getElementById('periodic-table');
+    table.innerHTML = "";
+
+    elements.forEach(el => {
+      const elDiv = document.createElement('div');
+      elDiv.className = 'element';
+      elDiv.style.gridColumn = el.xpos;
+      elDiv.style.gridRow = el.ypos;
+      elDiv.style.backgroundColor = categoryColors[el.category] || "#777";
+      elDiv.innerHTML = `<span>${el.number}</span><strong>${el.symbol}</strong>`;
+      elDiv.onclick = () => showElementInfo(el);
+      table.appendChild(elDiv);
+    });
+  }
+
+  function buildLegend() {
+    const legend = document.getElementById("legend");
+    legend.innerHTML = "<h2>Legend</h2>";
+    Object.entries(legendMap).forEach(([label, cat]) => {
+      const color = categoryColors[cat];
+      const div = document.createElement("div");
+      div.className = "legend-item";
+      div.style.backgroundColor = color;
+      div.innerText = label;
+      legend.appendChild(div);
+    });
+  }
+
+  function approximateAtomicRadius(el) {
+    if (!el.xpos || !el.ypos) return null;
+    return 70 + (el.ypos - 1) * 30 - el.xpos * 2;
+  }
+
+  function showElementInfo(el) {
+    document.getElementById('element-info').innerHTML = `
+      <strong style="font-size:18px">${el.name} (${el.symbol})</strong><br>
+      <b>Atomic Number:</b> ${el.number}<br>
+      <b>Atomic Mass:</b> ${el.atomic_mass}<br>
+      <b>Category:</b> ${el.category}<br>
+      <b>Electron Configuration:</b> ${el.electron_configuration}<br>
+      <b>Noble Gas Configuration:</b> ${el.electron_configuration_semantic || "N/A"}<br>
+      <b>Ionization Energy:</b> ${el.ionization_energies?.[0] ? el.ionization_energies[0] + " kJ/mol" : "N/A"}<br>
+      <b>Electron Affinity:</b> ${el.electron_affinity || "N/A"}<br>
+      <b>Approx. Atomic Radius:</b> ${approximateAtomicRadius(el) || "N/A"} pm<br>
+      <b>Reactivity:</b> ${el.reactivity || "N/A"}
+    `;
+  }
+
+  function findElement(symbol) {
+    const baseSymbol = symbol.replace(/[0-9\+\-]/g,'');
+    return elements.find(el => el.symbol.toLowerCase() === baseSymbol.toLowerCase());
+  }
+
+  function compareElements() {
+    const el1 = findElement(document.getElementById('element1').value);
+    const el2 = findElement(document.getElementById('element2').value);
+    const property = document.getElementById('property').value;
+
+    if(!el1 || !el2) {
+      document.getElementById('comparison-result').innerText = "Invalid elements or ions.";
+      return;
+    }
+
+    let value1, value2;
+    if(property === 'ionizationEnergy') {
+      value1 = el1.ionization_energies?.[0];
+      value2 = el2.ionization_energies?.[0];
+    } else if(property === 'electronAffinity') {
+      value1 = el1.electron_affinity;
+      value2 = el2.electron_affinity;
+    } else if(property === 'atomicRadius') {
+      value1 = approximateAtomicRadius(el1);
+      value2 = approximateAtomicRadius(el2);
+    } else if(property === 'reactivity') {
+      value1 = el1.reactivity;
+      value2 = el2.reactivity;
+    }
+
+    let result;
+    if(property === 'reactivity') {
+      result = `${el1.symbol}: ${value1 || "?"}, ${el2.symbol}: ${value2 || "?"}`;
+    } else {
+      result = (value1 == null || value2 == null) ? "Data not available." :
+               (value1 === value2 ? `Both ≈ same ${property} (${value1}).` :
+               (value1 > value2 ? `${el1.symbol} has higher ${property} (${value1} vs ${value2}).` :
+                                   `${el2.symbol} has higher ${property} (${value2} vs ${value1}).`));
+    }
+
+    document.getElementById('comparison-result').innerText = result;
+  }
+</script>
+</body>
+</html>
