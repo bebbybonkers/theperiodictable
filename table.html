@@ -145,7 +145,7 @@
     "Alkali Metals": "alkali metal",
     "Alkaline Earth Metals": "alkaline earth metal",
     "Transition Metals": "transition metal",
-    "Rare Earth Metals": "lanthanide", // includes actinides
+    "Rare Earth Metals": "lanthanide",
     "Metalloids": "metalloid",
     "Other Metals": "post-transition metal",
     "Nonmetals": "nonmetal",
@@ -174,7 +174,6 @@
     });
   }
 
-  // place lanthanides at row 9, actinides at row 10 → leaves row 8 as the gap
   function adjustFblock() {
     elements.forEach(el => {
       if (el.category === "lanthanide") el.ypos = 9;
@@ -276,3 +275,4 @@
 </script>
 </body>
 </html>
+
